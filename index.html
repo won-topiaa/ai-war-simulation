@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이지스 AEGIS — AI 전쟁 시뮬레이션</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--bg:#0b1117;--panel:#111a24;--panel2:#0f1720;--line:#1e2e3f;--txt:#dbe7f3;--mut:#8aa0b5;--pri:#38bdf8;--acc:#f59e0b;--blue:#38bdf8;--red:#f87171;--green:#34d399;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;font-size:14px}
+a{color:var(--pri)}
+header{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0d141d;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px}
+.logo-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0ea5e9,#1e3a8a);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff}
+.badge{font-size:12px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--mut);background:#0f1a26}
+.badge b{color:var(--acc)}
+nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+nav a{text-decoration:none;color:var(--mut);border:1px solid var(--line);padding:8px 14px;border-radius:8px;min-height:40px;display:inline-flex;align-items:center}
+nav a.on{color:#04121d;background:var(--pri);border-color:var(--pri);font-weight:700}
+main{display:grid;grid-template-columns:300px 1fr 330px;gap:10px;padding:10px;max-width:1600px;margin:0 auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.panel h2{font-size:13px;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);color:var(--mut);letter-spacing:1px}
+.pad{padding:12px 14px}
+#map{height:560px;width:100%;background:#060b11}
+.leaflet-container{font-family:inherit}
+.timeline{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap;background:var(--panel2)}
+button,.btn{cursor:pointer;border:1px solid var(--line);background:#162434;color:var(--txt);border-radius:8px;padding:9px 13px;min-height:40px;min-width:44px;font-size:14px}
+button.pri{background:var(--pri);border-color:var(--pri);color:#04121d;font-weight:800}
+button.acc{background:var(--acc);border-color:var(--acc);color:#231303;font-weight:800}
+button:disabled{opacity:.5;cursor:default}
+input[type=range]{width:100%;accent-color:var(--pri);height:32px}
+input[type=text],select,textarea{width:100%;background:#0b1420;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px;min-height:40px}
+.scn{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer;background:#0e1825}
+.scn.on{border-color:var(--pri);box-shadow:0 0 0 1px var(--pri) inset}
+.scn .t{font-weight:700;margin-bottom:4px}
+.scn .m{font-size:12px;color:var(--mut);line-height:1.6}
+.tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:20px;padding:2px 8px;margin:2px 4px 0 0;color:var(--pri)}
+.toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #1c2c3e}
+.toggle:last-child{border:none}
+.switch{position:relative;width:48px;height:28px;background:#243545;border-radius:20px;border:1px solid var(--line);cursor:pointer;flex:none}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#7d93a8;transition:.15s}
+.switch.on{background:#0c3a52;border-color:var(--pri)}
+.switch.on::after{left:22px;background:var(--pri)}
+.gauge{background:#0b1420;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+.bar{height:10px;background:#1a2a3c;border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#0ea5e9,#38bdf8)}
+.bar.r i{background:linear-gradient(90deg,#ef4444,#f87171)}
+.bar.g i{background:linear-gradient(90deg,#10b981,#34d399)}
+.log{height:220px;overflow:auto;font-size:12.5px;line-height:1.7;background:#080e15;border-top:1px solid var(--line);padding:10px 12px}
+.log div{border-bottom:1px solid #101c2a;padding:4px 0}
+.kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #162535}
+.kv span:last-child{font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid var(--line);padding:8px;text-align:left}
+th{background:#13202f;color:var(--mut)}
+canvas#chart{width:100%;height:180px;background:#080e15;border:1px solid var(--line);border-radius:10px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f2a3d;border:1px solid var(--pri);color:#fff;padding:11px 16px;border-radius:10px;z-index:2000;display:none;max-width:90vw}
+.view{display:none}
+.view.on{display:block}
+.notice{font-size:12px;color:var(--mut);line-height:1.6}
+.err{font-size:12px;color:#fca5a5}
+.ok{font-size:12px;color:#6ee7b7}
+@media(max-width:1100px){main{grid-template-columns:1fr}#map{height:420px}}
+</style>
+</head>
+<body>
+<header>
+<div class="logo"><div class="logo-mark">Æ</div><div>이지스 AEGIS<br><span style="font-size:11px;color:var(--mut);font-weight:400">AI 전쟁 시뮬레이션 · 팔란티어형 작전보드</span></div></div>
+<div class="badge">현재시각 <b id="clock">--:--:--</b></div>
+<div class="badge">경보 <b id="defcon">DEFCON 3</b></div>
+<div class="badge">AI 엔진 <b>온라인</b></div>
+<nav>
+<a href="#map" id="n-map">지도 작전도</a>
+<a href="#forces" id="n-forces">전력 비교</a>
+<a href="#report" id="n-report">AI 보고서</a>
+</nav>
+</header>
+
+<main>
+<!-- LEFT -->
+<section class="panel" aria-label="시나리오">
+<h2>① 시나리오 · 8종 (가상 훈련용)</h2>
+<div class="pad">
+<input type="text" id="q" placeholder="시나리오 검색 (예: 서해, 무인기)" aria-label="시나리오 검색">
+<div id="scnList" style="margin-top:10px"></div>
+<div id="emptyScn" class="notice" style="display:none">검색 결과가 없습니다. 검색어를 지워주세요.</div>
+<h2 style="border:none;padding:12px 0 4px">② 작전 변수</h2>
+<label class="notice">아군 증원 규모 <b id="v1v">100%</b></label>
+<input type="range" id="v1" min="70" max="150" value="100">
+<label class="notice">사이버·전자전 대응 <b id="v2v">보통</b></label>
+<input type="range" id="v2" min="0" max="100" value="50">
+<label class="notice">민간 대피·분산율 <b id="v3v">50%</b></label>
+<input type="range" id="v3" min="0" max="100" value="50">
+<h2 style="border:none;padding:12px 0 4px">③ 지도 레이어</h2>
+<div id="layers"></div>
+<p class="notice">지도: OpenStreetMap + Leaflet (키 없이 동작하는 공개 지도 API). 타일은 https 로 로드되며 차단돼도 격자 배경으로 시뮬레이션은 계속됩니다.</p>
+</div>
+</section>
+
+<!-- CENTER -->
+<section>
+<div class="panel view on" id="view-map">
+<h2>합동 작전 지도 — 한반도 전구 <span id="tickLabel" style="float:right;color:var(--pri)">T+0시간</span></h2>
+<div id="map" role="application" aria-label="작전 지도"></div>
+<div id="mapFallback" class="notice" style="display:none;padding:10px 14px">지도 타일 로딩이 느리거나 차단됐습니다. 격자 배경에서도 부대 기호·예측 경로는 정상 표시됩니다.</div>
+<div class="timeline">
+<button class="pri" id="playBtn">▶ 재생</button>
+<button id="stepBtn">+6시간</button>
+<button id="resetBtn">초기화</button>
+<select id="speed" style="width:110px" aria-label="배속"><option value="1000">1배속</option><option value="400" selected>4배속</option><option value="120">16배속</option></select>
+<input type="range" id="time" min="0" max="72" value="0" style="flex:1" aria-label="시간">
+<span class="badge">T+<b id="th">0</b>h / 72h</span>
+</div>
+<div class="pad notice" id="mapHint">파란색 ● 아군 · 붉은색 ◆ 적군 · 노란 점선 AI 예측 기동로. 마커를 누르면 부대 정보가 뜹니다.</div>
+</div>
+
+<div class="panel view" id="view-forces">
+<h2>전력 비교 — 아군 vs 적군 (가상 수치)</h2>
+<div class="pad">
+<table id="forceTable"><thead><tr><th>구분</th><th>아군</th><th>적군</th><th>AI 평가</th></tr></thead><tbody></tbody></table>
+<p class="notice">수치는 훈련용 가상값이며 실제 전력과 무관합니다. 좌측 작전 변수를 바꾸면 평가가 즉시 갱신됩니다.</p>
+</div>
+</div>
+
+<div class="panel view" id="view-report">
+<h2>AI 보고서 — 자동 생성 브리핑</h2>
+<div class="pad">
+<div class="kv"><span>선택 시나리오</span><span id="rScn">-</span></div>
+<div class="kv"><span>예측 결과 (72h)</span><span id="rWin">-</span></div>
+<div class="kv"><span>예상 피해 (아군/적군/민간)</span><span id="rCas">-</span></div>
+<div class="kv"><span>권고 조치 1순위</span><span id="rAct">-</span></div>
+<canvas id="chart" width="640" height="180"></canvas>
+<p class="notice">그래프: 시간대별 전투강도(파랑) · 적 진격속도(빨강). 재생 버튼으로 시간이 흐르면 함께 그려집니다.</p>
+<button class="acc" id="copyBtn">브리핑 문구 복사</button>
+<span id="copyMsg" class="ok"></span>
+<div style="margin-top:12px">
+<label class="notice" for="memo">지휘 메모 (이 기기 브라우저에만 저장됨)</label>
+<textarea id="memo" rows="3" placeholder="예: 06시 서해 부대 재배치 검토"></textarea>
+<p class="notice">입력하신 메모는 문의 응대·훈련 기록 목적으로 이 기기 브라우저에만 저장되며 서버로 전송되지 않습니다.</p>
+<button id="memoSave">메모 저장</button> <span id="memoMsg" class="notice"></span>
+</div>
+</div>
+</div>
+</section>
+
+<!-- RIGHT -->
+<section class="panel" aria-label="AI 분석">
+<h2>AI 전투 예측 · 실시간</h2>
+<div class="pad">
+<div class="gauge"><div class="notice">아군 작전 성공 확률</div><div style="font-size:26px;font-weight:800;color:var(--pri)" id="gWin">62%</div><div class="bar"><i id="gWinB" style="width:62%"></i></div></div>
+<div class="gauge"><div class="notice">적 공세 강도</div><div style="font-size:20px;font-weight:800;color:var(--red)" id="gOff">보통</div><div class="bar r"><i id="gOffB" style="width:45%"></i></div></div>
+<div class="gauge"><div class="notice">민간 안전 지수</div><div style="font-size:20px;font-weight:800;color:var(--green)" id="gCiv">78점</div><div class="bar g"><i id="gCivB" style="width:78%"></i></div></div>
+<div class="kv"><span>전선 이동</span><span id="kFront">-</span></div>
+<div class="kv"><span>아군 가용률</span><span id="kBlue">-</span></div>
+<div class="kv"><span>적군 가용률</span><span id="kRed">-</span></div>
+<div class="kv"><span>통신·전력 정상률</span><span id="kNet">-</span></div>
+</div>
+<h2>실시간 전황 로그</h2>
+<div class="log" id="log"></div>
+<div class="pad"><button id="callBtn" style="width:100%">☎ 훈련 통제관에게 전화 걸기</button>
+<p class="notice">예시 번호입니다. 실제 운용 시 통제관 번호로 교체하세요. · 접수·저장 데이터는 이 기기에만 저장됨을 고지합니다.</p></div>
+</section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function toast(m){const t=$("toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",2200);}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+// ---- 시나리오 8종 ----
+const SCN=[
+{id:"s1",t:"수도권 미사일 기습 대응",d:"발사 징후 포착 후 72시간 요격·분산 작전",meta:"기간 72h · 난이도 상 · 태그: 미사일/요격",lat:37.6,lng:127.0,diff:3},
+{id:"s2",t:"서해 NLL 해상 교전",d:"고속정 도발 대비 해·공 합동 차단",meta:"기간 48h · 난이도 중 · 태그: 해군/공군",lat:37.4,lng:124.6,diff:2},
+{id:"s3",t:"무인기 떼(드론 swarm) 침투",d:"저고도 무인기 100여 대 요격 시뮬레이션",meta:"기간 24h · 난이도 중 · 태그: 드론/방공",lat:36.8,lng:127.2,diff:2},
+{id:"s4",t:"사이버·전력망 마비 공격",d:"통신·전력 저하 속 지휘망 유지 훈련",meta:"기간 72h · 난이도 상 · 태그: 사이버/인프라",lat:36.4,lng:127.9,diff:3},
+{id:"s5",t:"동해 잠수함 추적전",d:"잠수함 식별·추적·봉쇄 3단계 작전",meta:"기간 60h · 난이도 상 · 태그: 해군/대잠",lat:38.2,lng:129.3,diff:3},
+{id:"s6",t:"접적지역 포병 도발 대응",d:"도발 원점 타격과 확전 차단 병행",meta:"기간 36h · 난이도 중 · 태그: 육군/화력",lat:38.3,lng:127.1,diff:2},
+{id:"s7",t:"항만 봉쇄·해상교통로 방어",d:"주요 항만 기뢰·봉쇄 돌파 작전",meta:"기간 72h · 난이도 하 · 태그: 해상수송",lat:35.1,lng:129.1,diff:1},
+{id:"s8",t:"위성항법(GPS) 교란전",d:"항법 교란 속 정밀타격 대체수단 검증",meta:"기간 48h · 난이도 하 · 태그: 전자전/정밀타격",lat:37.0,lng:128.0,diff:1},
+];
+let state={scn:"s1",tick:0,playing:false,v1:100,v2:50,v3:50,layers:{blue:true,red:true,civ:true,path:true}};
+try{const s=JSON.parse(localStorage.getItem("aegis-v1")||"{}");if(s.scn)state.scn=s.scn;if(typeof s.tick==="number")state.tick=Math.min(72,Math.max(0,s.tick));if(s.v1)state.v1=s.v1;if(typeof s.v2==="number")state.v2=s.v2;if(typeof s.v3==="number")state.v3=s.v3;}catch(e){}
+function save(){try{localStorage.setItem("aegis-v1",JSON.stringify({scn:state.scn,tick:state.tick,v1:state.v1,v2:state.v2,v3:state.v3}));}catch(e){}}
+
+// ---- 지도 ----
+let map=null,layerBlue=null,layerRed=null,layerCiv=null,layerPath=null,markers=[];
+function initMap(){
+  const c=SCN.find(s=>s.id===state.scn);
+  try{
+    if(typeof L==="undefined"){ $("mapFallback").style.display="block"; return; }
+    if(map){map.setView([c.lat,c.lng],7);return;}
+    map=L.map("map",{zoomControl:true}).setView([c.lat,c.lng],7);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:12,attribution:"&copy; OpenStreetMap"}).addTo(map);
+    map.on("tileerror",()=>{$("mapFallback").style.display="block";});
+    layerBlue=L.layerGroup();layerRed=L.layerGroup();layerCiv=L.layerGroup();layerPath=L.layerGroup();
+    layerBlue.addTo(map);layerRed.addTo(map);layerCiv.addTo(map);layerPath.addTo(map);
+  }catch(e){ $("mapFallback").style.display="block"; }
+}
+function icon(color,shape){return (typeof L!=="undefined")?L.divIcon({className:"",html:'<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:18px;color:'+color+';text-shadow:0 0 6px #000">'+shape+'</div>',iconSize:[22,22]}):null;}
+function seedRand(n){let x=n;return()=>{x=(x*9301+49297)%233280;return x/233280;};}
+function units(){
+  const c=SCN.find(s=>s.id===state.scn);const r=seedRand(c.t.length*77+c.diff*13);const U=[];
+  const bn=["1기갑여단","7보병사단","공군 10전투비행단","해군 2함대","방공 3여단","특전 707대대"];
+  const rn=["적 4군단","적 포병여단","적 고속정 편대","적 드론연대","적 잠수함대","적 미사일여단"];
+  for(let i=0;i<6;i++){U.push({side:"blue",name:bn[i],blat:c.lat+(r()-.5)*3,blng:c.lng+(r()-.5)*3,vlat:(r()-.5)*.05,vlng:(r()-.5)*.05,hp:100});}
+  for(let i=0;i<6;i++){U.push({side:"red",name:rn[i],blat:c.lat+(r()-.5)*3.4,blng:c.lng+(r()-.5)*3.4,vlat:(r()-.5)*.06,vlng:(r()-.5)*.06,hp:100});}
+  for(let i=0;i<4;i++){U.push({side:"civ",name:"민간 대피소 "+(i+1),blat:c.lat+(r()-.5)*2.4,blng:c.lng+(r()-.5)*2.4,vlat:0,vlng:0,hp:100});}
+  return U;
+}
+let U=units();
+function drawMap(){
+  if(typeof L==="undefined"||!map)return;
+  [layerBlue,layerRed,layerCiv,layerPath].forEach(l=>l.clearLayers());
+  const t=state.tick;
+  U.forEach(u=>{
+    const lat=u.blat+u.vlat*t, lng=u.blng+u.vlng*t;
+    u.hp=Math.max(20,100-t*(u.side==="red"?1.0:0.7)*(1+(SCN.find(s=>s.id===state.scn).diff-2)*0.2));
+    let grp=null,ic=null;
+    if(u.side==="blue"){grp=layerBlue;ic=icon("#38bdf8","●");}
+    else if(u.side==="red"){grp=layerRed;ic=icon("#f87171","◆");}
+    else{grp=layerCiv;ic=icon("#fbbf24","▲");}
+    const show=(u.side==="blue"&&state.layers.blue)||(u.side==="red"&&state.layers.red)||(u.side==="civ"&&state.layers.civ);
+    if(!show)return;
+    const m=L.marker([lat,lng],{icon:ic}).bindPopup("<b>"+esc(u.name)+"</b><br>가용률 "+Math.round(u.hp)+"% · T+"+t+"h");
+    grp.addLayer(m);
+  });
+  if(state.layers.path){
+    U.filter(u=>u.side==="red").slice(0,3).forEach(u=>{
+      const pts=[];for(let k=0;k<=72;k+=6)pts.push([u.blat+u.vlat*k,u.blng+u.vlng*k]);
+      L.polyline(pts,{color:"#f59e0b",dashArray:"6 6",weight:2}).addTo(layerPath);
+    });
+  }
+  ["blue","red","civ","path"].forEach(k=>{
+    if(!state.layers[k]){ if(k==="blue")map.removeLayer(layerBlue); if(k==="red")map.removeLayer(layerRed); if(k==="civ")map.removeLayer(layerCiv); if(k==="path")map.removeLayer(layerPath);}
+    else{ if(k==="blue"&&!map.hasLayer(layerBlue))layerBlue.addTo(map); if(k==="red"&&!map.hasLayer(layerRed))layerRed.addTo(map); if(k==="civ"&&!map.hasLayer(layerCiv))layerCiv.addTo(map); if(k==="path"&&!map.hasLayer(layerPath))layerPath.addTo(map);}
+  });
+}
+
+// ---- AI 계산 ----
+function ai(){
+  const c=SCN.find(s=>s.id===state.scn);const t=state.tick;
+  const base=66-c.diff*4;
+  const win=Math.max(8,Math.min(96,base+(state.v1-100)*0.35+(state.v2-50)*0.18+(state.v3-50)*0.08-t*0.25));
+  const off=Math.max(5,Math.min(98,40+c.diff*9-t*0.4+(50-state.v2)*0.2));
+  const civ=Math.max(30,Math.min(99,60+state.v3*0.35-t*0.3));
+  const blue=Math.max(40,100-t*0.55+(state.v1-100)*0.1);
+  const red=Math.max(25,100-t*0.75);
+  const net=Math.max(35,95-t*0.5+(state.v2-50)*0.25);
+  const front=(t*0.4-c.diff).toFixed(1);
+  return {win,off,civ,blue,red,net,front,c};
+}
+function render(){
+  const a=ai();
+  $("tickLabel").textContent="T+"+state.tick+"시간";
+  $("th").textContent=state.tick; $("time").value=state.tick;
+  $("gWin").textContent=Math.round(a.win)+"%"; $("gWinB").style.width=a.win+"%";
+  $("gOff").textContent=a.off>70?"매우 강함":a.off>50?"강함":a.off>30?"보통":"약화";
+  $("gOffB").style.width=a.off+"%";
+  $("gCiv").textContent=Math.round(a.civ)+"점"; $("gCivB").style.width=a.civ+"%";
+  $("kFront").textContent="적 전선 "+(a.front>0?"+":"")+a.front+"km";
+  $("kBlue").textContent=Math.round(a.blue)+"%"; $("kRed").textContent=Math.round(a.red)+"%"; $("kNet").textContent=Math.round(a.net)+"%";
+  $("defcon").textContent=a.off>70?"DEFCON 2":"DEFCON 3";
+  $("rScn").textContent=a.c.t;
+  $("rWin").textContent="아군 성공 "+Math.round(a.win)+"% · 적 가용 "+Math.round(a.red)+"%";
+  $("rCas").textContent="아 "+Math.round((100-a.blue)/4)+"% / 적 "+Math.round((100-a.red)/3)+"% / 민간 안전 "+Math.round(a.civ)+"점";
+  $("rAct").textContent=a.off>60?"방공·요격 우선 배치":a.net<60?"지휘통신망 복구 우선":"현재 작전 유지·감시 강화";
+  $("v1v").textContent=state.v1+"%";$("v2v").textContent=state.v2>66?"강함":state.v2>33?"보통":"취약";$("v3v").textContent=state.v3+"%";
+  drawMap();drawChart();renderForces(a);save();
+}
+function renderForces(a){
+  const rows=[
+    ["기갑·기동",Math.round(120*state.v1/100)+"대",Math.round(140)+"대",a.win>60?"우세":"열세"],
+    ["방공·요격",Math.round(40+state.v2*0.5)+"개 포대",Math.round(55)+"개 포대",state.v2>50?"대응 가능":"보강 필요"],
+    ["해·공 합동",Math.round(80*state.v1/100)+"척/대",Math.round(90)+"척/대","대등"],
+    ["사이버·통신",Math.round(a.net)+"% 정상",Math.round(60+a.c.diff*5)+"% 공격력",a.net>60?"방어 유지":"취약"],
+    ["민간방호",Math.round(state.v3)+"% 분산","-",a.civ>70?"양호":"대피 확대 권고"],
+  ];
+  const tb=$("forceTable").querySelector("tbody");tb.innerHTML="";
+  rows.forEach(r=>{const tr=document.createElement("tr");r.forEach(c=>{const td=document.createElement("td");td.textContent=c;tr.appendChild(td);});tb.appendChild(tr);});
+}
+function drawChart(){
+  const cv=$("chart");if(!cv)return;const x=cv.getContext("2d");x.clearRect(0,0,cv.width,cv.height);
+  x.strokeStyle="#1e2e3f";x.beginPath();x.moveTo(30,10);x.lineTo(30,150);x.lineTo(630,150);x.stroke();
+  x.fillStyle="#8aa0b5";x.font="11px sans-serif";x.fillText("전투강도",4,20);x.fillText("0h",30,165);x.fillText("36h",320,165);x.fillText("72h",600,165);
+  const a=ai();
+  x.strokeStyle="#38bdf8";x.lineWidth=2;x.beginPath();
+  for(let k=0;k<=72;k+=2){const y=150-(30+Math.sin(k/8)*15+k*0.4+(100-a.win)*0.2);const px=30+k/72*600;x.lineTo(px,Math.max(15,Math.min(148,y)));}
+  x.stroke();
+  x.strokeStyle="#f87171";x.beginPath();
+  for(let k=0;k<=72;k+=2){const y=150-(a.off*0.9-k*0.3);const px=30+k/72*600;x.lineTo(px,Math.max(15,Math.min(148,y)));}
+  x.stroke();
+  x.fillStyle="#38bdf8";x.fillRect(450,16,22,4);x.fillStyle="#8aa0b5";x.fillText("아군 강도",476,22);
+  x.fillStyle="#f87171";x.fillRect(450,30,22,4);x.fillStyle="#8aa0b5";x.fillText("적 진격",476,36);
+  x.fillStyle="#f59e0b";const px=30+state.tick/72*600;x.fillRect(px,10,2,140);
+}
+
+// ---- 로그 ----
+const EVENTS=["위성 정찰: 적 기동 포착","요격체계 가동률 점검 완료","지휘소 간 암호통신 전환","민간 대피소 개방률 갱신","전자전 대응팀 배치","후방 보급로 확보","무인 정찰기 출격","적 통신 교란 신호 탐지","방공 포대 재배치","연합 감시자산 정보 공유"];
+function addLog(t){
+  const box=$("log");const d=document.createElement("div");
+  d.textContent="T+"+t+"h · "+EVENTS[t%EVENTS.length]+" · 성공확률 "+Math.round(ai().win)+"%";
+  box.prepend(d);while(box.children.length>60)box.lastChild.remove();
+}
+
+// ---- 시나리오 목록 ----
+function renderScn(filter){
+  const box=$("scnList");box.innerHTML="";let n=0;
+  SCN.forEach(s=>{
+    if(filter&&!(s.t.includes(filter)||s.d.includes(filter)||s.meta.includes(filter)))return;
+    n++;
+    const el=document.createElement("div");el.className="scn"+(s.id===state.scn?" on":"");el.tabIndex=0;el.setAttribute("role","button");
+    const t=document.createElement("div");t.className="t";t.textContent=s.t;el.appendChild(t);
+    const m=document.createElement("div");m.className="m";m.textContent=s.d;el.appendChild(m);
+    const m2=document.createElement("div");m2.className="m";m2.textContent=s.meta;el.appendChild(m2);
+    const tag=document.createElement("span");tag.className="tag";tag.textContent="중심 "+s.lat.toFixed(1)+","+s.lng.toFixed(1);el.appendChild(tag);
+    const go=()=>{state.scn=s.id;state.tick=0;U=units();$("log").innerHTML="";addLog(0);initMap();render();toast("시나리오 변경: "+s.t);location.hash="#map";};
+    el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};
+    box.appendChild(el);
+  });
+  $("emptyScn").style.display=n?"none":"block";
+}
+function renderLayers(){
+  const defs=[["blue","아군 부대"],["red","적군 부대"],["civ","민간 대피소"],["path","AI 예측 기동로"]];
+  const box=$("layers");box.innerHTML="";
+  defs.forEach(([k,label])=>{
+    const row=document.createElement("div");row.className="toggle";
+    const s=document.createElement("span");s.textContent=label;row.appendChild(s);
+    const sw=document.createElement("div");sw.className="switch"+(state.layers[k]?" on":"");sw.tabIndex=0;sw.setAttribute("role","switch");sw.setAttribute("aria-checked",state.layers[k]);
+    const tg=()=>{state.layers[k]=!state.layers[k];sw.classList.toggle("on",state.layers[k]);render();};
+    sw.onclick=tg;sw.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tg();}};
+    row.appendChild(sw);box.appendChild(row);
+  });
+}
+
+// ---- 라우팅 ----
+function route(){
+  let h=location.hash||"#map";if(!["#map","#forces","#report"].includes(h))h="#map";
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
+  document.querySelectorAll("nav a").forEach(a=>a.classList.remove("on"));
+  if(h==="#map"){$("view-map").classList.add("on");$("n-map").classList.add("on");setTimeout(()=>{if(map)map.invalidateSize();},50);}
+  if(h==="#forces"){$("view-forces").classList.add("on");$("n-forces").classList.add("on");}
+  if(h==="#report"){$("view-report").classList.add("on");$("n-report").classList.add("on");}
+}
+window.addEventListener("hashchange",route);
+
+// ---- 시계·재생 ----
+setInterval(()=>{const d=new Date();$("clock").textContent=d.toLocaleTimeString("ko-KR",{hour12:false});},1000);
+let timer=null;
+function setPlay(p){
+  state.playing=p;$("playBtn").textContent=p?"⏸ 일시정지":"▶ 재생";
+  if(timer){clearInterval(timer);timer=null;}
+  if(p){const sp=parseInt($("speed").value,10);timer=setInterval(()=>{if(state.tick>=72){setPlay(false);toast("72시간 시뮬레이션 종료");return;}state.tick++;addLog(state.tick);render();},sp);}
+}
+$("playBtn").onclick=()=>setPlay(!state.playing);
+$("stepBtn").onclick=()=>{state.tick=Math.min(72,state.tick+6);addLog(state.tick);render();};
+$("resetBtn").onclick=()=>{setPlay(false);state.tick=0;$("log").innerHTML="";addLog(0);render();toast("초기화했습니다");};
+$("speed").onchange=()=>{if(state.playing)setPlay(true);};
+$("time").oninput=e=>{state.tick=parseInt(e.target.value,10);render();};
+$("v1").value=state.v1;$("v2").value=state.v2;$("v3").value=state.v3;
+$("v1").oninput=e=>{state.v1=parseInt(e.target.value,10);render();};
+$("v2").oninput=e=>{state.v2=parseInt(e.target.value,10);render();};
+$("v3").oninput=e=>{state.v3=parseInt(e.target.value,10);render();};
+$("q").oninput=e=>renderScn(e.target.value.trim());
+$("copyBtn").onclick=e=>{
+  const b=e.currentTarget;b.disabled=true;setTimeout(()=>b.disabled=false,1000);
+  const txt="["+$("rScn").textContent+"] "+$("rWin").textContent+" / "+$("rCas").textContent+" / 권고: "+$("rAct").textContent;
+  const done=()=>{$("copyMsg").textContent="복사됨 — 붙여넣기 하세요";toast("브리핑 복사됨");};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done).catch(()=>{$("copyMsg").textContent=txt;});}
+  else{$("copyMsg").textContent=txt;}
+};
+try{$("memo").value=localStorage.getItem("aegis-memo")||"";}catch(e){}
+let memoLock=false;
+$("memoSave").onclick=()=>{
+  if(memoLock)return;const v=$("memo").value.trim();
+  if(!v){$("memoMsg").textContent="메모를 먼저 입력하세요";$("memoMsg").className="err";return;}
+  memoLock=true;setTimeout(()=>memoLock=false,1000);
+  try{localStorage.setItem("aegis-memo",v);}catch(e){}
+  $("memoMsg").textContent="저장됨 (이 기기에만 저장)";$("memoMsg").className="ok";toast("메모 저장됨");
+};
+$("callBtn").onclick=()=>{location.href="tel:02-000-0000";toast("예시 번호로 전화를 연결합니다");};
+
+// ---- 시작 ----
+renderScn("");renderLayers();initMap();addLog(0);route();render();
+if(state.tick>0){for(let k=1;k<=state.tick;k++)addLog(k);}
+</script>
+
+<!--ethos-badge--><div style="text-align:center;padding:16px 8px 20px;font:12px/1.6 -apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#9aa1a9">이 페이지는 <a href="https://ethos.ai.kr" target="_blank" rel="noopener" style="color:#8a919b;text-decoration:underline">에토스AI 코드</a>로 만들어졌습니다</div>
+</body>
+</html>
