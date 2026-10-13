@@ -39,10 +39,10 @@ input[type=text],select,textarea{width:100%;background:#0b1420;border:1px solid 
 .tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:20px;padding:2px 8px;margin:2px 4px 0 0;color:var(--pri)}
 .toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #1c2c3e}
 .toggle:last-child{border:none}
-.switch{position:relative;width:48px;height:28px;background:#243545;border-radius:20px;border:1px solid var(--line);cursor:pointer;flex:none}
+.switch{position:relative;width:56px;height:32px;background:#243545;border-radius:20px;border:1px solid var(--line);cursor:pointer;flex:none;min-height:32px}.switch:focus-visible{outline:2px solid var(--pri);outline-offset:2px}.toggle{min-height:48px}
 .switch::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#7d93a8;transition:.15s}
 .switch.on{background:#0c3a52;border-color:var(--pri)}
-.switch.on::after{left:22px;background:var(--pri)}
+.switch.on::after{left:28px;background:var(--pri)}
 .gauge{background:#0b1420;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
 .bar{height:10px;background:#1a2a3c;border-radius:6px;overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,#0ea5e9,#38bdf8)}
@@ -182,9 +182,9 @@ const SCN=[
 {id:"s7",t:"항만 봉쇄·해상교통로 방어",d:"주요 항만 기뢰·봉쇄 돌파 작전",meta:"기간 72h · 난이도 하 · 태그: 해상수송",lat:35.1,lng:129.1,diff:1},
 {id:"s8",t:"위성항법(GPS) 교란전",d:"항법 교란 속 정밀타격 대체수단 검증",meta:"기간 48h · 난이도 하 · 태그: 전자전/정밀타격",lat:37.0,lng:128.0,diff:1},
 ];
-let state={scn:"s1",tick:0,playing:false,v1:100,v2:50,v3:50,layers:{blue:true,red:true,civ:true,path:true}};
-try{const s=JSON.parse(localStorage.getItem("aegis-v1")||"{}");if(s.scn)state.scn=s.scn;if(typeof s.tick==="number")state.tick=Math.min(72,Math.max(0,s.tick));if(s.v1)state.v1=s.v1;if(typeof s.v2==="number")state.v2=s.v2;if(typeof s.v3==="number")state.v3=s.v3;}catch(e){}
-function save(){try{localStorage.setItem("aegis-v1",JSON.stringify({scn:state.scn,tick:state.tick,v1:state.v1,v2:state.v2,v3:state.v3}));}catch(e){}}
+let state={scn:"s1",tick:0,playing:false,v1:100,v2:50,v3:50,layers:{blue:true,red:true,civ:true,path:true},q:""};
+try{const s=JSON.parse(localStorage.getItem("aegis-v1")||"{}");if(s.scn&&SCN.some(x=>x.id===s.scn))state.scn=s.scn;if(typeof s.tick==="number")state.tick=Math.min(72,Math.max(0,s.tick));if(s.v1)state.v1=s.v1;if(typeof s.v2==="number")state.v2=s.v2;if(typeof s.v3==="number")state.v3=s.v3;if(s.layers){["blue","red","civ","path"].forEach(k=>{if(typeof s.layers[k]==="boolean")state.layers[k]=s.layers[k];});}if(typeof s.q==="string")state.q=s.q;}catch(e){}
+function save(){try{localStorage.setItem("aegis-v1",JSON.stringify({scn:state.scn,tick:state.tick,v1:state.v1,v2:state.v2,v3:state.v3,layers:state.layers,q:state.q||""}));}catch(e){toast("기기 저장 공간 문제로 자동 저장이 안 됐습니다");}}
 
 // ---- 지도 ----
 let map=null,layerBlue=null,layerRed=null,layerCiv=null,layerPath=null,markers=[];
@@ -317,7 +317,7 @@ function renderScn(filter){
     const m=document.createElement("div");m.className="m";m.textContent=s.d;el.appendChild(m);
     const m2=document.createElement("div");m2.className="m";m2.textContent=s.meta;el.appendChild(m2);
     const tag=document.createElement("span");tag.className="tag";tag.textContent="중심 "+s.lat.toFixed(1)+","+s.lng.toFixed(1);el.appendChild(tag);
-    const go=()=>{state.scn=s.id;state.tick=0;U=units();$("log").innerHTML="";addLog(0);initMap();render();toast("시나리오 변경: "+s.t);location.hash="#map";};
+    const go=()=>{if(state.scn===s.id){location.hash="#map";return;}state.scn=s.id;state.tick=0;setPlay(false);U=units();$("log").innerHTML="";addLog(0);initMap();renderScn(state.q||"");render();toast("시나리오 변경: "+s.t);if(location.hash!=="#map")location.hash="#map";};
     el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};
     box.appendChild(el);
   });
@@ -338,7 +338,7 @@ function renderLayers(){
 
 // ---- 라우팅 ----
 function route(){
-  let h=location.hash||"#map";if(!["#map","#forces","#report"].includes(h))h="#map";
+  let h=location.hash||"#map";if(!["#map","#forces","#report"].includes(h)){h="#map";if(location.hash!==h)history.replaceState(null,"",h);}
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   document.querySelectorAll("nav a").forEach(a=>a.classList.remove("on"));
   if(h==="#map"){$("view-map").classList.add("on");$("n-map").classList.add("on");setTimeout(()=>{if(map)map.invalidateSize();},50);}
@@ -356,7 +356,7 @@ function setPlay(p){
   if(p){const sp=parseInt($("speed").value,10);timer=setInterval(()=>{if(state.tick>=72){setPlay(false);toast("72시간 시뮬레이션 종료");return;}state.tick++;addLog(state.tick);render();},sp);}
 }
 $("playBtn").onclick=()=>setPlay(!state.playing);
-$("stepBtn").onclick=()=>{state.tick=Math.min(72,state.tick+6);addLog(state.tick);render();};
+$("stepBtn").onclick=e=>{const b=e.currentTarget;if(b.disabled)return;b.disabled=true;setTimeout(()=>b.disabled=false,400);if(state.tick>=72){toast("이미 72시간 끝에 도달했습니다");return;}state.tick=Math.min(72,state.tick+6);addLog(state.tick);render();};
 $("resetBtn").onclick=()=>{setPlay(false);state.tick=0;$("log").innerHTML="";addLog(0);render();toast("초기화했습니다");};
 $("speed").onchange=()=>{if(state.playing)setPlay(true);};
 $("time").oninput=e=>{state.tick=parseInt(e.target.value,10);render();};
@@ -364,7 +364,7 @@ $("v1").value=state.v1;$("v2").value=state.v2;$("v3").value=state.v3;
 $("v1").oninput=e=>{state.v1=parseInt(e.target.value,10);render();};
 $("v2").oninput=e=>{state.v2=parseInt(e.target.value,10);render();};
 $("v3").oninput=e=>{state.v3=parseInt(e.target.value,10);render();};
-$("q").oninput=e=>renderScn(e.target.value.trim());
+$("q").oninput=e=>{state.q=e.target.value.trim();save();renderScn(state.q);};
 $("copyBtn").onclick=e=>{
   const b=e.currentTarget;b.disabled=true;setTimeout(()=>b.disabled=false,1000);
   const txt="["+$("rScn").textContent+"] "+$("rWin").textContent+" / "+$("rCas").textContent+" / 권고: "+$("rAct").textContent;
@@ -376,18 +376,19 @@ try{$("memo").value=localStorage.getItem("aegis-memo")||"";}catch(e){}
 let memoLock=false;
 $("memoSave").onclick=()=>{
   if(memoLock)return;const v=$("memo").value.trim();
-  if(!v){$("memoMsg").textContent="메모를 먼저 입력하세요";$("memoMsg").className="err";return;}
-  memoLock=true;setTimeout(()=>memoLock=false,1000);
+  if(!v){$("memoMsg").textContent="메모를 먼저 입력하세요";$("memoMsg").className="err";$("memo").focus();return;}
+  if(v.length>500){$("memoMsg").textContent="메모는 500자 이내로 입력하세요";$("memoMsg").className="err";return;}
+  memoLock=true;$("memoSave").disabled=true;setTimeout(()=>{memoLock=false;$("memoSave").disabled=false;},1000);
   try{localStorage.setItem("aegis-memo",v);}catch(e){}
   $("memoMsg").textContent="저장됨 (이 기기에만 저장)";$("memoMsg").className="ok";toast("메모 저장됨");
 };
 $("callBtn").onclick=()=>{location.href="tel:02-000-0000";toast("예시 번호로 전화를 연결합니다");};
 
 // ---- 시작 ----
-renderScn("");renderLayers();initMap();addLog(0);route();render();
+try{if(state.q){$("q").value=state.q;}}catch(e){}renderScn(state.q||"");renderLayers();initMap();addLog(0);route();render();
 if(state.tick>0){for(let k=1;k<=state.tick;k++)addLog(k);}
 </script>
 
-<!--ethos-badge--><div style="text-align:center;padding:16px 8px 20px;font:12px/1.6 -apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#9aa1a9">이 페이지는 <a href="https://ethos.ai.kr" target="_blank" rel="noopener" style="color:#8a919b;text-decoration:underline">에토스AI 코드</a>로 만들어졌습니다</div>
+<!--ethos-badge--><div aria-hidden="true" style="height:30px;flex:0 0 auto;width:100%"></div><div style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;text-align:center;padding:6px 8px;font:12px/1.4 -apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#9aa1a9;background:rgba(255,255,255,.86);backdrop-filter:blur(2px)">이 페이지는 <a href="https://ethos.ai.kr" target="_blank" rel="noopener" style="color:#8a919b;text-decoration:underline">에토스AI 코드</a>로 만들어졌습니다</div>
 </body>
 </html>
